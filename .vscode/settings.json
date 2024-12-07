@@ -1,3 +1,6 @@
 {
-  "haskell.plugin.eval.config.exception": true
+  "cSpell.words": [
+    "uncurry"
+  ],
+  "haskell.formattingProvider": "fourmolu"
 }
