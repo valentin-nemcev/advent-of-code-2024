@@ -15,4 +15,5 @@ library
   build-depends:
     , base        ^>=4.20.0.0
     , containers
-    , here        ^>=1.2.14
+    , extra
+    , here
