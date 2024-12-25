@@ -1,5 +1,6 @@
 module AdventOfCode2024 where
 
+import Data.Char (isUpper)
 import Data.IntMap.Strict qualified as IntMap
 import Data.Ix (Ix (inRange))
 import Data.String.Here (here, i)
@@ -37,6 +38,9 @@ mapAdjacent f = zipWith f <*> drop 1
 
 count :: (a -> Bool) -> [a] -> Int
 count p = filter p >>> length
+
+mapWithIndex :: (Num a, Enum a) => (a -> b -> c) -> [b] -> [c]
+mapWithIndex f = zipWith f [0 ..]
 
 -----
 
@@ -123,8 +127,8 @@ day3P = catMaybes <$> (P.many $ (Just <$> instruction) P.<++ (Nothing <$ P.get))
     instruction = (Do <$ P.string "do()") P.+++ (Don't <$ P.string "don't()") P.+++ (Mul <$> mul)
     mul = (,) <$> (P.string "mul(" *> intP) <*> (P.char ',' *> intP <* P.char ')')
 
-day3a :: String -> (Int, Int)
-day3a = parse day3P >>> map interpretA &&& snd . mapAccumL interpretB True >>> both sum
+day3 :: String -> (Int, Int)
+day3 = parse day3P >>> map interpretA &&& snd . mapAccumL interpretB True >>> both sum
   where
     interpretA :: Instruction -> Int
     interpretA = \case Mul (a, b) -> a * b; _ -> 0
@@ -134,7 +138,79 @@ day3a = parse day3P >>> map interpretA &&& snd . mapAccumL interpretB True >>> b
     interpretB _ Don't = (False, 0)
     interpretB _ Do = (True, 0)
 
---- >>> day3a day3Example
---- >>> day3a <$> input 3
+--- >>> day3 day3Example
+--- >>> day3 <$> input 3
 -- (161,48)
 -- (175615763,74361272)
+
+-----
+day4Example :: String
+day4Example =
+  [here|
+MMMSXXMASM
+MSAMXMSMSA
+AMXSXMAAMM
+MSAMASMSMX
+XMASAMXAMM
+XXAMMXXAMA
+SMSMSASXSS
+SAXAMASAAA
+MAMMMXMMMM
+MXMXAXMASX
+|]
+
+-- >>> parse day4P day4Example
+-- ["MMMSXXMASM","MSAMXMSMSA","AMXSXMAAMM","MSAMASMSMX","XMASAMXAMM","XXAMMXXAMA","SMSMSASXSS","SAXAMASAAA","MAMMMXMMMM","MXMXAXMASX"]
+day4P :: ReadP [[Char]]
+day4P = linesP $ P.munch $ isUpper
+
+day4a = parse day4P >>> flap [id, map reverse, transpose, mapWithIndex rotate >>> transpose, mapWithIndex (rotate . negate) >>> transpose] >>> concat . concat >>> sublists 4 >>> count (== "XMAS")
+
+diag = mapWithIndex rotate >>> transpose
+
+rotate n xs =
+  let xs' = ":" ++ xs ++ ":"
+      nn = n `mod` length xs'
+   in drop nn xs' ++ take nn xs'
+
+sublists n = tails >>> (map $ take n)
+
+--- >>> (parse day4P >>> mapWithIndex (rotate . negate)  ) $ day4Example
+-- [":MMMSXXMASM:","::MSAMXMSMSA","M::AMXSXMAAM","MX::MSAMASMS","AMM::XMASAMX","XAMA::XXAMMX","ASXSS::SMSMS","MASAAA::SAXA","MMXMMMM::MAM","MXAXMASX::MX"]
+--
+--
+
+t =
+  [ "MMMSXXMASM:",
+    "SAMXMSMSA:M",
+    "XSXMAAMM:AM",
+    "MASMSMX:MSA",
+    "AMXAMM:XMAS",
+    "XXAMA:XXAMM",
+    "SXSS:SMSMSA",
+    "AAA:SAXAMAS",
+    "MM:MAMMMXMM",
+    "X:MXMXAXMAS"
+  ]
+
+tt =
+  [ "M:MMMSXXMAS",
+    "SA:MSAMXMSM",
+    "AMM:AMXSXMA",
+    "MSMX:MSAMAS",
+    "MXAMM:XMASA",
+    "MXXAMA:XXAM",
+    "MSASXSS:SMS",
+    "XAMASAAA:SA",
+    "AMMMXMMMM:M",
+    "MXMXAXMASX:"
+  ]
+
+--- >>> day4a day4Example
+-- 10
+
+--- >>> mod (-1) 5
+-- 4
+
+-- >>> :t rotate . negate
+-- rotate . negate :: Int -> [Char] -> [Char]
