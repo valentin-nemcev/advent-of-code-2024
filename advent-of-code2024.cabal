@@ -19,8 +19,10 @@ library
   hs-source-dirs:     .
   default-language:   GHC2024
   build-depends:
-    , base        ^>=4.20.0.0
+    , array
+    , base                ^>=4.20.0.0
     , containers
     , extra
     , here
+    , parser-combinators
     , relude

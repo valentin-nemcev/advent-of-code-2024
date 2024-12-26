@@ -1,5 +1,7 @@
 module AdventOfCode2024 where
 
+import Control.Monad.Combinators.NonEmpty (sepBy1)
+import Data.Array.Unboxed (UArray, listArray, (!))
 import Data.Char (isUpper)
 import Data.IntMap.Strict qualified as IntMap
 import Data.Ix (Ix (inRange))
@@ -23,10 +25,14 @@ intP = readDecP @Int
 spaceP :: ReadP ()
 spaceP = P.skipMany1 (P.char ' ')
 
+nlP :: ReadP Char
+nlP = P.char '\n'
+
 linesP :: ReadP a -> ReadP [a]
-linesP p = p `P.sepBy` nl <* P.optional nl
-  where
-    nl = P.char '\n'
+linesP p = p `P.sepBy` nlP <* P.optional nlP
+
+linesPNE :: ReadP a -> ReadP (NonEmpty a)
+linesPNE p = p `sepBy1` nlP <* P.optional nlP
 
 input :: Int -> IO String
 input n = readFileBS [i|./input/${n}.txt|] <&> decodeUtf8
@@ -161,56 +167,28 @@ MXMXAXMASX
 
 -- >>> parse day4P day4Example
 -- ["MMMSXXMASM","MSAMXMSMSA","AMXSXMAAMM","MSAMASMSMX","XMASAMXAMM","XXAMMXXAMA","SMSMSASXSS","SAXAMASAAA","MAMMMXMMMM","MXMXAXMASX"]
-day4P :: ReadP [[Char]]
-day4P = linesP $ P.munch $ isUpper
+day4P :: ReadP ([[Char]])
+day4P = linesP $ P.munch1 $ isUpper
 
-day4a = parse day4P >>> flap [id, map reverse, transpose, mapWithIndex rotate >>> transpose, mapWithIndex (rotate . negate) >>> transpose] >>> concat . concat >>> sublists 4 >>> count (== "XMAS")
+day4a input =
+  let ls = parse day4P input
+      size = length ls
+      arr = listArray @UArray ((1, 1), (size, size)) $ concat ls
+      ix =
+        concat
+          [ [[(s, c) | c <- [1 .. size]] | s <- [1 .. size]],
+            [[(r, s) | r <- [1 .. size]] | s <- [1 .. size]],
+            [[(s + i, 1 + i) | i <- [0 .. size - s]] | s <- [1 .. size]],
+            [[(1 + i, s + i) | i <- [0 .. size - s]] | s <- [2 .. size]],
+            [[(s + i, size - i) | i <- [0 .. size - s]] | s <- [1 .. size]],
+            [[(1 + i, s - i) | i <- [0 .. s - 1]] | s <- [size - 1, size - 2 .. 1]]
+          ]
+   in (map (arr !) >>> tails) `concatMap` ix & count matches
 
-diag = mapWithIndex rotate >>> transpose
-
-rotate n xs =
-  let xs' = ":" ++ xs ++ ":"
-      nn = n `mod` length xs'
-   in drop nn xs' ++ take nn xs'
-
-sublists n = tails >>> (map $ take n)
-
---- >>> (parse day4P >>> mapWithIndex (rotate . negate)  ) $ day4Example
--- [":MMMSXXMASM:","::MSAMXMSMSA","M::AMXSXMAAM","MX::MSAMASMS","AMM::XMASAMX","XAMA::XXAMMX","ASXSS::SMSMS","MASAAA::SAXA","MMXMMMM::MAM","MXAXMASX::MX"]
---
---
-
-t =
-  [ "MMMSXXMASM:",
-    "SAMXMSMSA:M",
-    "XSXMAAMM:AM",
-    "MASMSMX:MSA",
-    "AMXAMM:XMAS",
-    "XXAMA:XXAMM",
-    "SXSS:SMSMSA",
-    "AAA:SAXAMAS",
-    "MM:MAMMMXMM",
-    "X:MXMXAXMAS"
-  ]
-
-tt =
-  [ "M:MMMSXXMAS",
-    "SA:MSAMXMSM",
-    "AMM:AMXSXMA",
-    "MSMX:MSAMAS",
-    "MXAMM:XMASA",
-    "MXXAMA:XXAM",
-    "MSASXSS:SMS",
-    "XAMASAAA:SA",
-    "AMMMXMMMM:M",
-    "MXMXAXMASX:"
-  ]
+matches :: [Char] -> Bool
+matches s = or $ isPrefixOf <$> ["XMAS", "SAMX"] ?? s
 
 --- >>> day4a day4Example
--- 10
-
---- >>> mod (-1) 5
--- 4
-
--- >>> :t rotate . negate
--- rotate . negate :: Int -> [Char] -> [Char]
+--- >>> day4a <$> input 4
+-- 18
+-- 2378
