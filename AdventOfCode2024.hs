@@ -1,7 +1,7 @@
 module AdventOfCode2024 where
 
 import Control.Monad.Combinators.NonEmpty (sepBy1)
-import Data.Array.Unboxed (UArray, listArray, (!))
+import Data.Array.Unboxed (IArray (bounds), UArray, listArray, (!), (!?))
 import Data.Char (isUpper)
 import Data.IntMap.Strict qualified as IntMap
 import Data.Ix (Ix (inRange))
@@ -47,6 +47,13 @@ count p = filter p >>> length
 
 mapWithIndex :: (Num a, Enum a) => (a -> b -> c) -> [b] -> [c]
 mapWithIndex f = zipWith f [0 ..]
+
+--- >>> window 3 "12"
+--- >>> window 3 "12345"
+-- []
+-- ["123","234","345"]
+window :: Int -> [a] -> [[a]]
+window n = foldr (zipWith (:)) (repeat []) . take n . tails
 
 -----
 
@@ -170,25 +177,37 @@ MXMXAXMASX
 day4P :: ReadP ([[Char]])
 day4P = linesP $ P.munch1 $ isUpper
 
+day4a :: String -> (Int, Int)
 day4a input =
   let ls = parse day4P input
-      size = length ls
-      arr = listArray @UArray ((1, 1), (size, size)) $ concat ls
-      ix =
+      last = (length ls) - 1
+      arr = listArray @UArray ((0, 0), (last, last)) $ concat ls
+      ixA =
         concat
-          [ [[(s, c) | c <- [1 .. size]] | s <- [1 .. size]],
-            [[(r, s) | r <- [1 .. size]] | s <- [1 .. size]],
-            [[(s + i, 1 + i) | i <- [0 .. size - s]] | s <- [1 .. size]],
-            [[(1 + i, s + i) | i <- [0 .. size - s]] | s <- [2 .. size]],
-            [[(s + i, size - i) | i <- [0 .. size - s]] | s <- [1 .. size]],
-            [[(1 + i, s - i) | i <- [0 .. s - 1]] | s <- [size - 1, size - 2 .. 1]]
+          [ [[(s, i) | i <- [0 .. last]] | s <- [0 .. last]], -- rows
+            [[(i, s) | i <- [0 .. last]] | s <- [0 .. last]], -- cols
+            [[(s + i, i) | i <- [0 .. last]] | s <- [0 .. last]], -- diag down+right
+            [[(i, s + i) | i <- [0 .. last]] | s <- [1 .. last]],
+            [[(s + i, last - i) | i <- [0 .. last]] | s <- [0 .. last]], -- diag down+left
+            [[(i, last - s - i) | i <- [0 .. last]] | s <- [1 .. last]]
           ]
-   in (map (arr !) >>> tails) `concatMap` ix & count matches
-
-matches :: [Char] -> Bool
-matches s = or $ isPrefixOf <$> ["XMAS", "SAMX"] ?? s
+      countMatchesA s = count (== True) $ isPrefixOf <$> ["XMAS", "SAMX"] <*> tails s
+      ixB =
+        [ [ (r - 1, c - 1),
+            (r, c),
+            (r + 1, c + 1),
+            (r - 1, c + 1),
+            (r, c),
+            (r + 1, c - 1)
+          ]
+        | r <- [1 .. last - 1],
+          c <- [1 .. last - 1]
+        ]
+      matchesB s = s `elem` (liftA2 (++) ["MAS", "SAM"] ["MAS", "SAM"])
+      readIx = (map $ mapMaybe (arr !?))
+   in (ixA, ixB) & both readIx & bimap (sum . map countMatchesA) (count matchesB)
 
 --- >>> day4a day4Example
 --- >>> day4a <$> input 4
--- 18
--- 2378
+-- (18,9)
+-- (2378,1796)
