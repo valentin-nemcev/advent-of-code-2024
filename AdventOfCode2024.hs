@@ -1,7 +1,7 @@
 module AdventOfCode2024 where
 
 import Control.Monad.Combinators.NonEmpty (sepBy1)
-import Data.Array.Unboxed (IArray (bounds), UArray, listArray, (!), (!?))
+import Data.Array.Unboxed (UArray, listArray, (!?))
 import Data.Char (isUpper)
 import Data.IntMap.Strict qualified as IntMap
 import Data.Ix (Ix (inRange))
